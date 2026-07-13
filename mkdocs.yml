@@ -1,0 +1,70 @@
+site_name: Lucid Protocol Specification
+site_url: https://lucidprotocol.org
+# lucid-specification/ is fetched by scripts/fetch_spec.py from the
+# public Lucid-Specification repo, not carried in this repo -- see
+# scripts/fetch_spec.py's own docstring.
+docs_dir: lucid-specification/docs
+
+hooks:
+  - scripts/mkdocs_table_captions.py
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+theme:
+  name: material
+  features:
+    - navigation.top
+    - navigation.indexes
+    - navigation.expand
+    - toc.follow
+    - search.suggest
+    - content.code.copy
+
+markdown_extensions:
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Front matter:
+      - Preface: front-matter/preface.md
+      - Glossary of terms: front-matter/glossary.md
+      - References: front-matter/references.md
+  - Introduction: 01-introduction.md
+  - Data model:
+      - Field device overview: 02-data-model/00-field-device-overview.md
+      - Device profile: 02-data-model/01-device-profile.md
+      - Configuration: 02-data-model/02-configuration.md
+      - Connection scheduling and time formats: 02-data-model/03-connection-scheduling-and-time.md
+      - Events and actions: 02-data-model/04-events-and-actions.md
+      - Points overview and quality flags: 02-data-model/05-points-overview-and-quality.md
+      - Binary points: 02-data-model/06-binary-points.md
+      - Analogue points: 02-data-model/07-analogue-points.md
+      - Counter points: 02-data-model/08-counter-points.md
+      - Analogue limits: 02-data-model/09-analogue-limits.md
+      - Counter limits: 02-data-model/10-counter-limits.md
+      - No change: 02-data-model/11-no-change.md
+      - Extended points: 02-data-model/12-extended-points.md
+      - Limit and control profiles: 02-data-model/13-limit-and-control-profiles.md
+      - Calculated points and incident logging: 02-data-model/14-calculated-points-and-incident-logging.md
+  - Controls and overrides: 03-controls-and-overrides.md
+  - Data reporting: 04-data-reporting.md
+  - Field device core blocks: 05-field-device-core-blocks.md
+  - Use of MQTT: 06-use-of-mqtt.md
+  - Field device lifecycle: 07-field-device-lifecycle.md
+  - Security: 08-security.md
+  - Class names and ontology: 09-class-names-and-ontology.md
+  - Field device profile extensions and layout: 10-field-device-profile-extensions.md
+  - Example use cases: 11-example-use-cases.md
+  - Supervisory application profile document: 12-supervisory-application-profile-document.md
+  - Appendices:
+      - "Appendix A: JSON files": appendices/a-json-files.md
+      - "Appendix B: Topic summary": appendices/b-topic-summary.md
+      - "Appendix C: Calculated point code":
+          - Overview: appendices/c-calculated-point-code/00-overview.md
+          - Operation codes: appendices/c-calculated-point-code/01-operation-codes.md
+          - Example and quality flags: appendices/c-calculated-point-code/02-example-and-quality-flags.md
+      - "Appendix D: Revision history": appendices/d-revision-history.md

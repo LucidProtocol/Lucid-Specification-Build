@@ -1,0 +1,41 @@
+% Pandoc's default LaTeX template sets \fps@figure{htbp}, which still lets
+% xelatex defer a figure to the top of whatever page it lands on -- and
+% stack it there with the *next* deferred figure if two land on the same
+% page together, with no check that the combination still fits within
+% \textheight (confirmed by hand: Figure 8 and Figure 9 in this document,
+% two large images separated only by a short paragraph, were deferred and
+% stacked this way, producing a page 333.9pt -- roughly 11.8cm -- taller
+% than \textheight, silently clipping most of Figure 8 off the bottom of
+% its page with no error, only an "Overfull \vbox" warning in the log).
+% The `float` package's `[H]` placement (added to every `\begin{figure}`
+% by force_figure_placement in build_pdf.py) pins each figure exactly
+% where it falls in reading order instead -- LaTeX's ordinary page
+% breaking then either fits it in the remaining space on the current page
+% or bumps it, whole, to the next one, but can never combine it with a
+% neighboring figure the way plain floating placement can.
+\usepackage{float}
+
+% \pandocbounded (defined earlier by pandoc's own template, in
+% common.latex) scales an oversized image down to fit within \textheight
+% -- but only the image's own bounding box, with no allowance for the
+% \caption line underneath it inside the same figure. An image scaled to
+% *exactly* fill \textheight therefore still overflows the page by its
+% caption's height, even placed alone via [H] above with nothing else
+% competing for room on that page. Redefining the height budget to
+% \textheight minus a fixed reserve -- comfortably more than one caption
+% line (\abovecaptionskip + a line of text + \belowcaptionskip, all
+% well under 30pt at this document's caption font size) -- guarantees
+% the scaled image always leaves room for its own caption on the same
+% page, closing that gap rather than only fixing the two-figures-
+% combined case above.
+\makeatletter
+\renewcommand*\pandocbounded[1]{%
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\dimexpr\textheight-50pt\relax}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+\makeatother

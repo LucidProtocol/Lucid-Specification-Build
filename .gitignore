@@ -1,0 +1,8 @@
+/lucid-specification/
+/spec-version.json
+/build/
+/site/
+/dist/
+__pycache__/
+*.pyc
+.venv/
