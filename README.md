@@ -43,7 +43,8 @@ Assumes Python 3 is already installed. Also needed: git, Pandoc, and a
 LaTeX distribution with `xelatex` (for the PDF build only -- the website
 doesn't need either Pandoc or LaTeX).
 
-**Windows** (via [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/), built into Windows 10/11 -- or download installers from
+### Windows
+(via [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/), built into Windows 10/11 -- or download installers from
 [pandoc.org](https://pandoc.org/installing.html) and [miktex.org](https://miktex.org/) instead):
 
 ```
@@ -55,7 +56,8 @@ winget install --id Git.Git
 pip is bundled with the standard python.org/Microsoft Store installers --
 nothing extra to install. Confirm with `py -m pip --version`.
 
-**macOS** (via [Homebrew](https://brew.sh/)):
+### macOS
+(via [Homebrew](https://brew.sh/)):
 
 ```
 brew install pandoc git
@@ -69,7 +71,7 @@ a time. It's a large download (~4GB) but a one-time cost. pip is bundled
 with the python.org installer and Homebrew's own python formula; confirm
 with `python3 -m pip --version`.
 
-**Linux (Debian/Ubuntu)**:
+### Linux (Debian/Ubuntu)
 
 ```
 sudo apt update
@@ -79,7 +81,8 @@ sudo apt install pandoc texlive-xetex texlive-fonts-recommended git python3-pip 
 Unlike Windows/macOS, Debian/Ubuntu's system Python doesn't bundle pip --
 that's why `python3-pip` is listed explicitly above rather than assumed.
 
-**Then, on any platform**, create a virtual environment and install the
+### Then, on any platform
+Create a virtual environment and install the
 Python dependencies (mkdocs + mkdocs-material; PyYAML comes along as a
 dependency of mkdocs itself):
 
