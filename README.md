@@ -111,9 +111,16 @@ built from.
 
 ## Building the website
 
+To create the static web documents in site/ use the following command:
+
 ```
-.venv\Scripts\python -m mkdocs serve      # live preview at localhost:8000
-.venv\Scripts\python -m mkdocs build      # outputs to site/
+.venv\Scripts\python -m mkdocs build
+```
+
+To build and serve a live preview at localhost:8000 use the following command:
+
+```
+.venv\Scripts\python -m mkdocs serve
 ```
 
 The site footer shows which Lucid-Specification commit/tag it was built
