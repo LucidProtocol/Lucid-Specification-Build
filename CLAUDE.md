@@ -39,9 +39,11 @@ Fetch (or update) the spec content this builds from:
 ```
 .venv\Scripts\python scripts\fetch_spec.py               # latest commit on the default branch
 .venv\Scripts\python scripts\fetch_spec.py --ref v1.4     # a specific tag or commit instead
+.venv\Scripts\python scripts\fetch_spec.py --ref origin/spec-build   # a branch (needs the origin/ prefix)
 ```
 
-Build/preview the website:
+Build/preview the website (run the PDF build first if the site should
+include the PDF and its "Download PDF" nav link):
 
 ```
 .venv\Scripts\python -m mkdocs serve      # live preview at localhost:8000
@@ -90,7 +92,31 @@ free, no custom theme override needed) from the same file.
 titles.** `scripts/build_pdf.py` parses that same `nav:` (via PyYAML) to
 decide what order to concatenate `lucid-specification/docs/*.md` files
 into the PDF, so the website and PDF can never drift out of sync with
-each other. `docs_dir: lucid-specification/docs` in `mkdocs.yml` and the
+each other. That's also why the website's "Download PDF" nav link isn't
+in `nav:`: `scripts/mkdocs_table_captions.py`'s `on_files`/`on_nav` hooks
+copy `dist/lucid-protocol-specification.pdf` into the site and append a
+nav `Link` to it, only when that file exists (a `nav:` entry for a file
+outside `docs_dir` would also fail `--strict`) and `dist/build-info.json`'s
+commit matches `spec-version.json`'s -- otherwise they log a warning and
+skip it (so `--strict` aborts) rather than link a PDF of a different spec
+version. `on_files` also copies `assets/favicon.png` (what
+`mkdocs.yml`'s `theme.favicon` points at) and `assets/favicon.ico` (for
+the browser's PDF viewer, which requests `/favicon.ico`) to the site
+root; both are the `{l}` cut from the spec's `lucid-wordmark.png`.
+`build_pdf.py` deletes the previous PDF and `build-info.json`
+before building, so a failed PDF build can't leave a stale one behind. `requirements.txt` caps
+`mkdocs<2` because MkDocs 2.0 drops the plugin/hook system these hooks
+rely on (it also moves config to TOML and changes how themes get the
+nav, and Material for MkDocs won't support it -- Material itself caps
+`mkdocs<2` too). Material gets critical fixes only until 5 May 2027;
+its team's successor is Zensical, meant as a drop-in replacement for
+MkDocs 1.x that reads `mkdocs.yml` unchanged. Planned migration (see the
+"Future work" section at the end of README.md): try a Zensical build on a branch in
+early 2027, mainly to check it runs these hooks (`on_page_markdown`,
+`on_config`, `on_files`, `on_nav`). If not, move their work into a
+pre-build script run after `fetch_spec.py` (rewrite captions, copy the
+PDF into `docs_dir`, add the nav entry), so the site generator only sees
+plain Markdown. `docs_dir: lucid-specification/docs` in `mkdocs.yml` and the
 `DOCS` constant in `build_pdf.py` both point at the fetched checkout, not
 a folder native to this repo.
 
@@ -205,6 +231,9 @@ header-includes=\usepackage{pdflscape}`) since the width-floor logic alone
 can't give every column room on a portrait page. `rasterize_svgs`
 rasterizes the spec's SVG diagrams to PNG (headless Chrome/Edge, since
 `rsvg-convert` isn't installed) because the PDF path needs raster images.
+`find_browser` checks fixed Windows/macOS install paths first, then
+`shutil.which` for the Linux names (`google-chrome`, `chromium`, ...),
+which is what GitHub's ubuntu runners need.
 
 The footer (`footer_fix_tex`, `PDF_FOOTER_FIX_TEX` -- generated fresh
 each build since its content is data, not a static patch) is built from

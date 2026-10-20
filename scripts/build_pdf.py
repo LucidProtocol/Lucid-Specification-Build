@@ -28,6 +28,7 @@ SPEC_VERSION_FILE = ROOT / "spec-version.json"
 MKDOCS_YML = ROOT / "mkdocs.yml"
 OUT_DIR = ROOT / "dist"
 OUT_PDF = OUT_DIR / "lucid-protocol-specification.pdf"
+OUT_BUILD_INFO = OUT_DIR / "build-info.json"
 BUILD = ROOT / "build" / "pdf"
 COMBINED_MD = BUILD / "combined.md"
 # Pandoc normally goes straight from Markdown to a finished PDF in one
@@ -249,6 +250,14 @@ CHROME_CANDIDATES = [
     r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+]
+# Linux installs put the browser on PATH under one of these names rather
+# than at a fixed path (GitHub's ubuntu runners ship google-chrome).
+CHROME_PATH_NAMES = [
+    "google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
+    "microsoft-edge",
 ]
 
 # pandoc's LaTeX PDF path needs rsvg-convert to embed SVGs directly, which
@@ -264,7 +273,14 @@ def find_browser() -> str:
     for path in CHROME_CANDIDATES:
         if Path(path).exists():
             return path
-    raise RuntimeError("No headless-capable Chrome/Edge found to rasterize SVGs")
+    for name in CHROME_PATH_NAMES:
+        path = shutil.which(name)
+        if path:
+            return path
+    raise RuntimeError(
+        "No headless-capable Chrome/Chromium/Edge found to rasterize SVGs "
+        f"(looked for {', '.join(CHROME_CANDIDATES + CHROME_PATH_NAMES)})"
+    )
 
 
 def rasterize_svgs() -> None:
@@ -1133,6 +1149,11 @@ def main():
 
     BUILD.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    # Clear the previous outputs up front, so a failed build leaves dist/
+    # with no PDF rather than a stale one the website build would then
+    # pick up and link to (see mkdocs_table_captions.py's on_files).
+    for stale in (OUT_PDF, OUT_BUILD_INFO):
+        stale.unlink(missing_ok=True)
     rasterize_svgs()
 
     parts = []
@@ -1216,8 +1237,8 @@ def main():
 
     if spec_info is not None:
         build_info = {**spec_info, "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-        (OUT_DIR / "build-info.json").write_text(json.dumps(build_info, indent=2) + "\n", encoding="utf-8")
-        print(f"Wrote {OUT_DIR / 'build-info.json'}")
+        OUT_BUILD_INFO.write_text(json.dumps(build_info, indent=2) + "\n", encoding="utf-8")
+        print(f"Wrote {OUT_BUILD_INFO}")
 
 
 if __name__ == "__main__":
