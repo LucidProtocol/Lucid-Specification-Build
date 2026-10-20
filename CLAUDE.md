@@ -39,9 +39,11 @@ Fetch (or update) the spec content this builds from:
 ```
 .venv\Scripts\python scripts\fetch_spec.py               # latest commit on the default branch
 .venv\Scripts\python scripts\fetch_spec.py --ref v1.4     # a specific tag or commit instead
+.venv\Scripts\python scripts\fetch_spec.py --ref origin/spec-build   # a branch (needs the origin/ prefix)
 ```
 
-Build/preview the website:
+Build/preview the website (run the PDF build first if the site should
+include the PDF and its "Download PDF" nav link):
 
 ```
 .venv\Scripts\python -m mkdocs serve      # live preview at localhost:8000
@@ -90,7 +92,31 @@ free, no custom theme override needed) from the same file.
 titles.** `scripts/build_pdf.py` parses that same `nav:` (via PyYAML) to
 decide what order to concatenate `lucid-specification/docs/*.md` files
 into the PDF, so the website and PDF can never drift out of sync with
-each other. `docs_dir: lucid-specification/docs` in `mkdocs.yml` and the
+each other. That's also why the website's "Download PDF" nav link isn't
+in `nav:`: `scripts/mkdocs_table_captions.py`'s `on_files`/`on_nav` hooks
+copy `dist/lucid-protocol-specification.pdf` into the site and append a
+nav `Link` to it, only when that file exists (a `nav:` entry for a file
+outside `docs_dir` would also fail `--strict`) and `dist/build-info.json`'s
+commit matches `spec-version.json`'s -- otherwise they log a warning and
+skip it (so `--strict` aborts) rather than link a PDF of a different spec
+version. `on_files` also copies `assets/favicon.png` (what
+`mkdocs.yml`'s `theme.favicon` points at) and `assets/favicon.ico` (for
+the browser's PDF viewer, which requests `/favicon.ico`) to the site
+root; both are the `{l}` cut from the spec's `lucid-wordmark.png`.
+`build_pdf.py` deletes the previous PDF and `build-info.json`
+before building, so a failed PDF build can't leave a stale one behind. `requirements.txt` caps
+`mkdocs<2` because MkDocs 2.0 drops the plugin/hook system these hooks
+rely on (it also moves config to TOML and changes how themes get the
+nav, and Material for MkDocs won't support it -- Material itself caps
+`mkdocs<2` too). Material gets critical fixes only until 5 May 2027;
+its team's successor is Zensical, meant as a drop-in replacement for
+MkDocs 1.x that reads `mkdocs.yml` unchanged. Planned migration (see the
+"Future work" section at the end of README.md): try a Zensical build on a branch in
+early 2027, mainly to check it runs these hooks (`on_page_markdown`,
+`on_config`, `on_files`, `on_nav`). If not, move their work into a
+pre-build script run after `fetch_spec.py` (rewrite captions, copy the
+PDF into `docs_dir`, add the nav entry), so the site generator only sees
+plain Markdown. `docs_dir: lucid-specification/docs` in `mkdocs.yml` and the
 `DOCS` constant in `build_pdf.py` both point at the fetched checkout, not
 a folder native to this repo.
 
@@ -102,8 +128,28 @@ the spec's Markdown uses it at all) is plain Pandoc markdown, not
 CommonMark/GFM, so MkDocs' Python-Markdown engine (and GitHub's own file
 preview) render it completely literally as a stray paragraph starting
 with a colon -- `scripts/mkdocs_table_captions.py`'s `on_page_markdown`
-hook rewrites it into a styled `<p class="table-caption">`, deliberately
-left unnumbered to match every other unnumbered thing on the website.
+hook rewrites it into a styled `<p class="table-caption">`.
+
+The same hook file gives the website the PDF's numbering -- section
+numbers on headings, the "on this page" contents and the nav, and
+"Table N:"/"Figure N:" captions (figures get a caption paragraph added,
+since Python-Markdown shows none). In the PDF those numbers come from
+LaTeX's counters, not from the Markdown, so `on_nav` re-counts them the
+way LaTeX does: every page in nav order, skipping `build_pdf.COVER_FILE`
+and headings with `build_pdf.UNNUMBERED_HEADING_CLASS`, lettering
+top-level headings from `build_pdf.FIRST_APPENDIX_FILE` on, one running
+count each for captioned tables and for figures (an image alone in its
+paragraph with alt text). The hook imports `build_pdf` for those
+constants so the two can't drift apart. Numbers are inserted into the
+rendered HTML (`on_page_content`), never the Markdown, so heading ids and
+links are unchanged; if a page's HTML has a different heading/figure
+count from the Markdown scan, it logs a warning (fails `--strict`).
+Pages with no H1 get an unnumbered `<h1>` of their nav title, since
+Material would otherwise generate one from the now-numbered
+`page.title`. The same hook also replaces the 🛈 note symbol with
+**NOTE:**, as `build_pdf.py` does, and drops the empty body row
+Python-Markdown adds to the spec's one-row callout tables.
+
 Table grid lines (the vertical rules Material's default table style is
 missing) come from `lucid-specification/docs/assets/stylesheets/
 extra.css`, which arrives with the fetched content rather than living in
@@ -205,6 +251,9 @@ header-includes=\usepackage{pdflscape}`) since the width-floor logic alone
 can't give every column room on a portrait page. `rasterize_svgs`
 rasterizes the spec's SVG diagrams to PNG (headless Chrome/Edge, since
 `rsvg-convert` isn't installed) because the PDF path needs raster images.
+`find_browser` checks fixed Windows/macOS install paths first, then
+`shutil.which` for the Linux names (`google-chrome`, `chromium`, ...),
+which is what GitHub's ubuntu runners need.
 
 The footer (`footer_fix_tex`, `PDF_FOOTER_FIX_TEX` -- generated fresh
 each build since its content is data, not a static patch) is built from

@@ -23,10 +23,12 @@ other.
 ```
 lucid-specification/          fetched by fetch_spec.py -- not in this repo
   docs/                       the spec's Markdown source
+assets/
+  favicon.png, favicon.ico     site icon, the {l} cut from the spec's lucid-wordmark.png
 scripts/
   fetch_spec.py                fetches/updates lucid-specification/
   build_pdf.py                 builds dist/lucid-protocol-specification.pdf
-  mkdocs_table_captions.py     MkDocs hook: table caption styling + site footer provenance
+  mkdocs_table_captions.py     MkDocs hooks: PDF-matching section/table/figure numbers, captions and note boxes, footer provenance, PDF link
   pdf-code-block.theme         Pandoc syntax-highlighting theme for the PDF's code blocks
   pdf-heading-fix.tex          Fixes level-4 headings running in to their first paragraph
   pdf-figure-fix.tex           Keeps every diagram whole on one page
@@ -56,6 +58,22 @@ winget install --id Git.Git
 pip is bundled with the standard python.org/Microsoft Store installers --
 nothing extra to install. Confirm with `py -m pip --version`.
 
+MiKTeX installs only a minimal set of LaTeX packages up front and
+downloads the rest the first time a document needs them. By default it
+asks before each one, so the first PDF build on a new machine pops up a
+series of "install package?" dialogs (about 14 for this document, e.g.
+`unicode-math.sty`, `xurl.sty`, `upquote.sty`, `latinmodern-math.otf`)
+that each need clicking through. Accepting them all works fine, but to
+let MiKTeX install them without asking, run this once after installing
+it (in a new terminal, so `initexmf` is on your PATH):
+
+```
+initexmf --set-config-value=[MPM]AutoInstall=1
+```
+
+The same setting is in the MiKTeX Console under Settings → "Always
+install missing packages on-the-fly".
+
 ### macOS
 (via [Homebrew](https://brew.sh/)):
 
@@ -75,8 +93,31 @@ with `python3 -m pip --version`.
 
 ```
 sudo apt update
-sudo apt install pandoc texlive-xetex texlive-fonts-recommended git python3-pip python3-venv
+sudo apt install texlive-xetex texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended lmodern git python3-pip python3-venv
 ```
+
+Pandoc comes from its own release page rather than apt: the PDF build
+needs Pandoc 3.8 or later (for `--syntax-highlighting`), and
+Debian/Ubuntu's `pandoc` package is older than that (3.1 on Ubuntu
+24.04). Download the `.deb` for your machine from
+[Pandoc's releases](https://github.com/jgm/pandoc/releases) and install
+it, e.g.:
+
+```
+curl -fsSLO https://github.com/jgm/pandoc/releases/download/3.12.1/pandoc-3.12.1-1-amd64.deb
+sudo apt install ./pandoc-3.12.1-1-amd64.deb
+```
+
+TeX Live on Linux never offers to install a missing LaTeX package the
+way MiKTeX does -- the build just stops with `! LaTeX Error: File
+'xurl.sty' not found` -- so every package this document uses has to be
+installed up front. `texlive-latex-extra` is the one that's easy to miss:
+it carries `xurl`, among others. (`texlive-full` would also work, but
+it's several GB.)
+
+The PDF build also needs a Chrome, Chromium or Edge browser on the PATH
+(`google-chrome`, `chromium`, ...) to turn the spec's SVG diagrams into
+images -- see `find_browser` in `scripts/build_pdf.py`.
 
 Unlike Windows/macOS, Debian/Ubuntu's system Python doesn't bundle pip --
 that's why `python3-pip` is listed explicitly above rather than assumed.
@@ -135,7 +176,11 @@ Code, etc.) needs restarting before it can find `gh` on the PATH.
 ```
 .venv\Scripts\python scripts\fetch_spec.py               # latest commit on the default branch
 .venv\Scripts\python scripts\fetch_spec.py --ref v1.4     # a specific tag or commit instead
+.venv\Scripts\python scripts\fetch_spec.py --ref origin/spec-build   # a branch other than the default
 ```
+
+A branch needs the `origin/` prefix: the checkout only has the remote's
+branches, never a local copy of them.
 
 This clones (first run) or updates (later runs) `lucid-specification/`
 and records what's checked out in `spec-version.json` -- commit hash,
@@ -161,6 +206,17 @@ To build and serve a live preview at localhost:8000 use the following command:
 The site footer shows which Lucid-Specification commit/tag it was built
 from (from `spec-version.json`, via an `on_config` hook in
 `scripts/mkdocs_table_captions.py`).
+
+If `dist/lucid-protocol-specification.pdf` exists when the site is built,
+it's copied into `site/` and a "Download PDF" link is added at the end of
+the nav. So to get a site with the PDF included, run `build_pdf.py`
+(below) first. Without it, the site builds fine, just with no PDF link.
+The PDF is only included if it was built from the same spec commit
+that's checked out now (`dist/build-info.json` against
+`spec-version.json`). Otherwise the build warns "Not linking ...
+Rebuild it with build_pdf.py" and leaves the link out, and `--strict`
+stops the build. That way the site never links to a PDF of a different
+spec version.
 
 ## Deploying the website
 
@@ -213,12 +269,10 @@ benefit, even though navigation itself doesn't depend on it.
   .venv\Scripts\python -m mkdocs gh-deploy
   ```
 
-  Note this repo is currently private to the committee -- a Pages site
-  built from it would inherit that restriction (visible only to people
-  with repo access) unless the org is on GitHub Enterprise Cloud. If the
-  published website itself needs to be public, `gh-deploy` would need to
-  target the public Lucid-Specification repo (or a separate repo/host
-  dedicated to just the built output) instead of this one.
+  This publishes from *this* build repo. The intended home for the
+  public site is GitHub Pages on the Lucid-Specification repo instead,
+  built and deployed automatically by a GitHub Actions workflow there.
+  `gh-deploy` from here remains useful for a quick manual preview.
 
 ## Building the PDF
 
@@ -229,6 +283,8 @@ benefit, even though navigation itself doesn't depend on it.
 Outputs `dist/lucid-protocol-specification.pdf`, plus
 `dist/build-info.json` recording the same spec commit/tag/date that's
 stamped into the PDF's own footer (`Version: ... | spec <tag-or-hash>`).
+It deletes both files when it starts, so a failed build leaves no PDF in
+`dist/`, not an out-of-date one.
 
 ## Provenance
 
@@ -249,3 +305,29 @@ history. `spec-version.json` (present after any `fetch_spec.py` run) and
   "fetched_at": "<ISO 8601>"
 }
 ```
+
+## Future work: moving off MkDocs 1.x
+
+The website is built with MkDocs 1.x, and `requirements.txt` pins
+`mkdocs<2` on purpose. MkDocs 2.0 is a rewrite that removes the plugin
+and hook system this repo's `scripts/mkdocs_table_captions.py` relies on,
+switches `mkdocs.yml` to a TOML config, and isn't supported by the
+Material theme. The pinned versions keep working after 2.0 is released,
+so nothing breaks, but Material for MkDocs only gets critical fixes
+until **5 May 2027**. Its team's recommended successor is
+[Zensical](https://zensical.org/), meant as a drop-in replacement that
+builds existing MkDocs 1.x projects, `mkdocs.yml` included.
+
+Plan:
+
+- **By March 2027:** on a branch, try building the site with Zensical
+  in place of MkDocs. The main thing to check is whether it runs this
+  repo's hooks (table captions, footer provenance, and the Download PDF
+  link).
+- **If it doesn't:** move the hooks' work into a small script run after
+  `fetch_spec.py`, so the site generator only ever sees plain Markdown.
+- **Before 5 May 2027:** switch over, update `requirements.txt` and the
+  GitHub Actions workflow, and update this README.
+
+Background: Material's write-up,
+[MkDocs 2.0](https://squidfunk.github.io/mkdocs-material/blog/2026/02/18/mkdocs-2.0/).

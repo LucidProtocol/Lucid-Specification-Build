@@ -28,6 +28,7 @@ SPEC_VERSION_FILE = ROOT / "spec-version.json"
 MKDOCS_YML = ROOT / "mkdocs.yml"
 OUT_DIR = ROOT / "dist"
 OUT_PDF = OUT_DIR / "lucid-protocol-specification.pdf"
+OUT_BUILD_INFO = OUT_DIR / "build-info.json"
 BUILD = ROOT / "build" / "pdf"
 COMBINED_MD = BUILD / "combined.md"
 # Pandoc normally goes straight from Markdown to a finished PDF in one
@@ -249,6 +250,14 @@ CHROME_CANDIDATES = [
     r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+]
+# Linux installs put the browser on PATH under one of these names rather
+# than at a fixed path (GitHub's ubuntu runners ship google-chrome).
+CHROME_PATH_NAMES = [
+    "google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
+    "microsoft-edge",
 ]
 
 # pandoc's LaTeX PDF path needs rsvg-convert to embed SVGs directly, which
@@ -264,7 +273,14 @@ def find_browser() -> str:
     for path in CHROME_CANDIDATES:
         if Path(path).exists():
             return path
-    raise RuntimeError("No headless-capable Chrome/Edge found to rasterize SVGs")
+    for name in CHROME_PATH_NAMES:
+        path = shutil.which(name)
+        if path:
+            return path
+    raise RuntimeError(
+        "No headless-capable Chrome/Chromium/Edge found to rasterize SVGs "
+        f"(looked for {', '.join(CHROME_CANDIDATES + CHROME_PATH_NAMES)})"
+    )
 
 
 def rasterize_svgs() -> None:
@@ -316,6 +332,7 @@ def nav_files(nav) -> list[str]:
 # root: "../../assets/images/x.png" -> "assets/images/x.png",
 # "../front-matter/references.md#id" -> "front-matter/references.md#id"
 LEADING_DOTDOT = re.compile(r"^(?:\.\./)+")
+UNNUMBERED_HEADING_CLASS = ".Heading-preface"  # see normalize_paths
 
 
 def normalize_paths(content: str) -> str:
@@ -334,8 +351,9 @@ def normalize_paths(content: str) -> str:
     content = re.sub(r"\]\([^)#]*\.md(#[A-Za-z][\w-]*)\)", r"](\1)", content)
 
     # pdflatex/xelatex's default fonts don't carry emoji glyphs (e.g. the
-    # NOTICE callouts' info-source icon) -- swap in a plain-text label for
-    # the PDF only; the website renders the emoji natively.
+    # NOTICE callouts' info-source icon) -- swap in a plain-text label.
+    # mkdocs_table_captions.py's on_page_markdown makes the same swap for
+    # the website, where most fonts lack the glyph too.
     content = content.replace("\U0001F6C8", "**NOTE:**")
 
     # Preface headings (Disclaimer, Copyright, Notices, Glossary, ...) carry
@@ -345,8 +363,12 @@ def normalize_paths(content: str) -> str:
     # and would otherwise count them as chapters 1-7, pushing "Introduction"
     # to chapter 8 and every section number after it out of step with the
     # original. Mark them unnumbered so numbering starts fresh at
-    # "1 Introduction", matching the source.
-    content = re.sub(r"(?m)^(#{1,6} .*\{[^}]*\.Heading-preface[^}]*)\}$", r"\1 .unnumbered}", content)
+    # "1 Introduction", matching the source. (mkdocs_table_captions.py
+    # numbers the website's headings by the same rule.)
+    content = re.sub(
+        rf"(?m)^(#{{1,6}} .*\{{[^}}]*{re.escape(UNNUMBERED_HEADING_CLASS)}[^}}]*)\}}$",
+        r"\1 .unnumbered}", content,
+    )
     return content
 
 
@@ -1115,9 +1137,10 @@ TOC_LATEX = "\n".join([
 # in word/numbering.xml), not as a continuation of the body's 1, 2, 3...
 # sequence -- matching the "Appendix B"/"Appendix C" cross-references
 # already in the body text. docs/*.md itself carries no heading numbers
-# anywhere (the website never numbers headings; --number-sections is a
-# PDF-only concern) -- LaTeX's own \appendix command is the equivalent
-# switch, so it's injected here rather than baked into the Markdown.
+# anywhere -- LaTeX's own \appendix command is the equivalent switch, so
+# it's injected here rather than baked into the Markdown. (The website
+# gets matching numbers from mkdocs_table_captions.py, which reads this
+# constant and COVER_FILE to count the same way.)
 FIRST_APPENDIX_FILE = "appendices/a-json-files.md"
 
 
@@ -1133,6 +1156,11 @@ def main():
 
     BUILD.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    # Clear the previous outputs up front, so a failed build leaves dist/
+    # with no PDF rather than a stale one the website build would then
+    # pick up and link to (see mkdocs_table_captions.py's on_files).
+    for stale in (OUT_PDF, OUT_BUILD_INFO):
+        stale.unlink(missing_ok=True)
     rasterize_svgs()
 
     parts = []
@@ -1216,8 +1244,8 @@ def main():
 
     if spec_info is not None:
         build_info = {**spec_info, "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-        (OUT_DIR / "build-info.json").write_text(json.dumps(build_info, indent=2) + "\n", encoding="utf-8")
-        print(f"Wrote {OUT_DIR / 'build-info.json'}")
+        OUT_BUILD_INFO.write_text(json.dumps(build_info, indent=2) + "\n", encoding="utf-8")
+        print(f"Wrote {OUT_BUILD_INFO}")
 
 
 if __name__ == "__main__":
