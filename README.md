@@ -93,7 +93,19 @@ with `python3 -m pip --version`.
 
 ```
 sudo apt update
-sudo apt install pandoc texlive-xetex texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended lmodern git python3-pip python3-venv
+sudo apt install texlive-xetex texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended lmodern git python3-pip python3-venv
+```
+
+Pandoc comes from its own release page rather than apt: the PDF build
+needs Pandoc 3.8 or later (for `--syntax-highlighting`), and
+Debian/Ubuntu's `pandoc` package is older than that (3.1 on Ubuntu
+24.04). Download the `.deb` for your machine from
+[Pandoc's releases](https://github.com/jgm/pandoc/releases) and install
+it, e.g.:
+
+```
+curl -fsSLO https://github.com/jgm/pandoc/releases/download/3.12.1/pandoc-3.12.1-1-amd64.deb
+sudo apt install ./pandoc-3.12.1-1-amd64.deb
 ```
 
 TeX Live on Linux never offers to install a missing LaTeX package the
