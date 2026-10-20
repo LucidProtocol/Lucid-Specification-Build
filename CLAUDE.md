@@ -128,8 +128,28 @@ the spec's Markdown uses it at all) is plain Pandoc markdown, not
 CommonMark/GFM, so MkDocs' Python-Markdown engine (and GitHub's own file
 preview) render it completely literally as a stray paragraph starting
 with a colon -- `scripts/mkdocs_table_captions.py`'s `on_page_markdown`
-hook rewrites it into a styled `<p class="table-caption">`, deliberately
-left unnumbered to match every other unnumbered thing on the website.
+hook rewrites it into a styled `<p class="table-caption">`.
+
+The same hook file gives the website the PDF's numbering -- section
+numbers on headings, the "on this page" contents and the nav, and
+"Table N:"/"Figure N:" captions (figures get a caption paragraph added,
+since Python-Markdown shows none). In the PDF those numbers come from
+LaTeX's counters, not from the Markdown, so `on_nav` re-counts them the
+way LaTeX does: every page in nav order, skipping `build_pdf.COVER_FILE`
+and headings with `build_pdf.UNNUMBERED_HEADING_CLASS`, lettering
+top-level headings from `build_pdf.FIRST_APPENDIX_FILE` on, one running
+count each for captioned tables and for figures (an image alone in its
+paragraph with alt text). The hook imports `build_pdf` for those
+constants so the two can't drift apart. Numbers are inserted into the
+rendered HTML (`on_page_content`), never the Markdown, so heading ids and
+links are unchanged; if a page's HTML has a different heading/figure
+count from the Markdown scan, it logs a warning (fails `--strict`).
+Pages with no H1 get an unnumbered `<h1>` of their nav title, since
+Material would otherwise generate one from the now-numbered
+`page.title`. The same hook also replaces the 🛈 note symbol with
+**NOTE:**, as `build_pdf.py` does, and drops the empty body row
+Python-Markdown adds to the spec's one-row callout tables.
+
 Table grid lines (the vertical rules Material's default table style is
 missing) come from `lucid-specification/docs/assets/stylesheets/
 extra.css`, which arrives with the fetched content rather than living in

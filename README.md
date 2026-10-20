@@ -28,7 +28,7 @@ assets/
 scripts/
   fetch_spec.py                fetches/updates lucid-specification/
   build_pdf.py                 builds dist/lucid-protocol-specification.pdf
-  mkdocs_table_captions.py     MkDocs hooks: table caption styling, site footer provenance, PDF link
+  mkdocs_table_captions.py     MkDocs hooks: PDF-matching section/table/figure numbers, captions and note boxes, footer provenance, PDF link
   pdf-code-block.theme         Pandoc syntax-highlighting theme for the PDF's code blocks
   pdf-heading-fix.tex          Fixes level-4 headings running in to their first paragraph
   pdf-figure-fix.tex           Keeps every diagram whole on one page

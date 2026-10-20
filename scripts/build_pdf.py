@@ -332,6 +332,7 @@ def nav_files(nav) -> list[str]:
 # root: "../../assets/images/x.png" -> "assets/images/x.png",
 # "../front-matter/references.md#id" -> "front-matter/references.md#id"
 LEADING_DOTDOT = re.compile(r"^(?:\.\./)+")
+UNNUMBERED_HEADING_CLASS = ".Heading-preface"  # see normalize_paths
 
 
 def normalize_paths(content: str) -> str:
@@ -350,8 +351,9 @@ def normalize_paths(content: str) -> str:
     content = re.sub(r"\]\([^)#]*\.md(#[A-Za-z][\w-]*)\)", r"](\1)", content)
 
     # pdflatex/xelatex's default fonts don't carry emoji glyphs (e.g. the
-    # NOTICE callouts' info-source icon) -- swap in a plain-text label for
-    # the PDF only; the website renders the emoji natively.
+    # NOTICE callouts' info-source icon) -- swap in a plain-text label.
+    # mkdocs_table_captions.py's on_page_markdown makes the same swap for
+    # the website, where most fonts lack the glyph too.
     content = content.replace("\U0001F6C8", "**NOTE:**")
 
     # Preface headings (Disclaimer, Copyright, Notices, Glossary, ...) carry
@@ -361,8 +363,12 @@ def normalize_paths(content: str) -> str:
     # and would otherwise count them as chapters 1-7, pushing "Introduction"
     # to chapter 8 and every section number after it out of step with the
     # original. Mark them unnumbered so numbering starts fresh at
-    # "1 Introduction", matching the source.
-    content = re.sub(r"(?m)^(#{1,6} .*\{[^}]*\.Heading-preface[^}]*)\}$", r"\1 .unnumbered}", content)
+    # "1 Introduction", matching the source. (mkdocs_table_captions.py
+    # numbers the website's headings by the same rule.)
+    content = re.sub(
+        rf"(?m)^(#{{1,6}} .*\{{[^}}]*{re.escape(UNNUMBERED_HEADING_CLASS)}[^}}]*)\}}$",
+        r"\1 .unnumbered}", content,
+    )
     return content
 
 
@@ -1131,9 +1137,10 @@ TOC_LATEX = "\n".join([
 # in word/numbering.xml), not as a continuation of the body's 1, 2, 3...
 # sequence -- matching the "Appendix B"/"Appendix C" cross-references
 # already in the body text. docs/*.md itself carries no heading numbers
-# anywhere (the website never numbers headings; --number-sections is a
-# PDF-only concern) -- LaTeX's own \appendix command is the equivalent
-# switch, so it's injected here rather than baked into the Markdown.
+# anywhere -- LaTeX's own \appendix command is the equivalent switch, so
+# it's injected here rather than baked into the Markdown. (The website
+# gets matching numbers from mkdocs_table_captions.py, which reads this
+# constant and COVER_FILE to count the same way.)
 FIRST_APPENDIX_FILE = "appendices/a-json-files.md"
 
 
