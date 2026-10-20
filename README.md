@@ -95,6 +95,41 @@ macOS/Linux: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 (and use `.venv/bin/python` instead of `.venv\Scripts\python` in every
 command below).
 
+### Optional: GitHub CLI (`gh`)
+
+Not needed for either build. It's useful for inspecting this repo's
+GitHub Actions runs from the command line -- e.g. reading a failed run's
+logs with `gh run view --log-failed` -- without opening the GitHub
+website.
+
+Install it:
+
+- **Windows:** `winget install --id GitHub.cli`
+- **macOS:** `brew install gh`
+- **Linux (Debian/Ubuntu):** `sudo apt install gh` -- older releases
+  don't carry it, in which case follow GitHub's [Linux install
+  instructions](https://github.com/cli/cli/blob/trunk/docs/install_linux.md)
+  to add their apt repository first.
+
+Then open a new terminal (so `gh` is on your PATH) and log in:
+
+```
+gh --version
+gh auth login
+```
+
+Choose **GitHub.com**, **HTTPS**, and **Login with a web browser**. It
+shows a one-time code to paste into the browser page that opens. If the
+LucidProtocol organisation uses SSO, GitHub may also ask you to
+authorise the login for that organisation -- approve it. Confirm with:
+
+```
+gh auth status
+```
+
+Any tool already running when `gh` was installed (an editor, Claude
+Code, etc.) needs restarting before it can find `gh` on the PATH.
+
 ## Fetching the spec content
 
 ```
