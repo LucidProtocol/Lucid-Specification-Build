@@ -39,7 +39,7 @@ Fetch (or update) the spec content this builds from:
 ```
 .venv\Scripts\python scripts\fetch_spec.py               # latest commit on the default branch
 .venv\Scripts\python scripts\fetch_spec.py --ref v1.4     # a specific tag or commit instead
-.venv\Scripts\python scripts\fetch_spec.py --ref origin/spec-build   # a branch (needs the origin/ prefix)
+.venv\Scripts\python scripts\fetch_spec.py --ref origin/my-branch    # a branch (needs the origin/ prefix)
 ```
 
 Build/preview the website (run the PDF build first if the site should

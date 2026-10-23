@@ -18,6 +18,38 @@ place page order/titles are defined; `scripts/build_pdf.py` reads that
 same `nav:` so the site and the PDF can never drift out of sync with each
 other.
 
+In practice this tooling is run for you by GitHub Actions on every
+change to the spec (next section). You only need to run it yourself to
+check a change locally.
+
+## Automated builds (GitHub Actions)
+
+**This is how the published site and PDF are built, and nearly always
+the only build anyone needs.** Nothing has to be run from this repo by
+hand. The Lucid-Specification repo has a workflow,
+[`.github/workflows/build.yml`](https://github.com/LucidProtocol/Lucid-Specification/blob/master/.github/workflows/build.yml),
+that runs on GitHub whenever the spec changes. It checks out this repo's
+`main` and runs the same `fetch_spec.py`, `build_pdf.py` and
+`mkdocs build --strict` commands described under
+[Building locally](#building-locally):
+
+- **Pull requests into `master`:** build both as a check. A broken nav
+  entry or link fails it. The PDF is attached to the run for reviewers.
+- **Pushes to `master`:** build, then deploy the site (with the PDF and
+  its "Download PDF" link) to
+  [lucidprotocol.github.io/Lucid-Specification](https://lucidprotocol.github.io/Lucid-Specification/).
+- **Tags `R1`, `R2`, ...:** build, then create a draft GitHub Release with
+  the PDF attached. A tag with a hyphen (e.g. `R4-rc1`) makes a
+  pre-release. Set the Release's title and notes, then publish it.
+
+So changing the spec means opening a pull request into `master` on
+Lucid-Specification, waiting for its check to pass, and getting it
+reviewed and merged. The site updates itself a few minutes later. To
+publish a numbered release, push the next `R` tag on `master`.
+
+Because the workflow always uses this repo's `main`, a change merged here
+takes effect on the next spec build. Test it locally first.
+
 ## Layout
 
 ```
@@ -39,13 +71,25 @@ requirements.txt               mkdocs + mkdocs-material
 spec-version.json              written by fetch_spec.py -- which spec commit is checked out
 ```
 
-## Setup
+## Building locally
+
+Everything in this section is for building the site and PDF by hand on
+your own machine. Publishing the spec doesn't need any of it. It's
+useful for:
+
+- checking a change to this repo before merging it into `main`, since the
+  workflow uses `main` straight away;
+- previewing spec changes before opening a pull request;
+- reference: this is how the documentation was built while it was being
+  developed, before the workflow existed.
+
+### Setup
 
 Assumes Python 3 is already installed. Also needed: git, Pandoc, and a
 LaTeX distribution with `xelatex` (for the PDF build only -- the website
 doesn't need either Pandoc or LaTeX).
 
-### Windows
+#### Windows
 (via [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/), built into Windows 10/11 -- or download installers from
 [pandoc.org](https://pandoc.org/installing.html) and [miktex.org](https://miktex.org/) instead):
 
@@ -74,7 +118,7 @@ initexmf --set-config-value=[MPM]AutoInstall=1
 The same setting is in the MiKTeX Console under Settings → "Always
 install missing packages on-the-fly".
 
-### macOS
+#### macOS
 (via [Homebrew](https://brew.sh/)):
 
 ```
@@ -89,7 +133,7 @@ a time. It's a large download (~4GB) but a one-time cost. pip is bundled
 with the python.org installer and Homebrew's own python formula; confirm
 with `python3 -m pip --version`.
 
-### Linux (Debian/Ubuntu)
+#### Linux (Debian/Ubuntu)
 
 ```
 sudo apt update
@@ -122,7 +166,7 @@ images -- see `find_browser` in `scripts/build_pdf.py`.
 Unlike Windows/macOS, Debian/Ubuntu's system Python doesn't bundle pip --
 that's why `python3-pip` is listed explicitly above rather than assumed.
 
-### Then, on any platform
+#### Then, on any platform
 Create a virtual environment and install the
 Python dependencies (mkdocs + mkdocs-material; PyYAML comes along as a
 dependency of mkdocs itself):
@@ -136,7 +180,7 @@ macOS/Linux: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 (and use `.venv/bin/python` instead of `.venv\Scripts\python` in every
 command below).
 
-### Optional: GitHub CLI (`gh`)
+#### Optional: GitHub CLI (`gh`)
 
 Not needed for either build. It's useful for inspecting this repo's
 GitHub Actions runs from the command line -- e.g. reading a failed run's
@@ -171,12 +215,12 @@ gh auth status
 Any tool already running when `gh` was installed (an editor, Claude
 Code, etc.) needs restarting before it can find `gh` on the PATH.
 
-## Fetching the spec content
+### Fetching the spec content
 
 ```
 .venv\Scripts\python scripts\fetch_spec.py               # latest commit on the default branch
 .venv\Scripts\python scripts\fetch_spec.py --ref v1.4     # a specific tag or commit instead
-.venv\Scripts\python scripts\fetch_spec.py --ref origin/spec-build   # a branch other than the default
+.venv\Scripts\python scripts\fetch_spec.py --ref origin/my-branch    # a branch other than the default
 ```
 
 A branch needs the `origin/` prefix: the checkout only has the remote's
@@ -189,7 +233,7 @@ against newer spec content; it always discards any local state in
 `lucid-specification/` first, since that folder only ever exists to be
 built from.
 
-## Building the website
+### Building the website
 
 To create the static web documents in site/ use the following command:
 
@@ -218,7 +262,7 @@ Rebuild it with build_pdf.py" and leaves the link out, and `--strict`
 stops the build. That way the site never links to a PDF of a different
 spec version.
 
-## Deploying the website
+### Deploying the website
 
 `site/` (from `mkdocs build`) is a self-contained folder of static files
 -- there's no server-side processing involved, so "deploying" always
@@ -269,12 +313,11 @@ benefit, even though navigation itself doesn't depend on it.
   .venv\Scripts\python -m mkdocs gh-deploy
   ```
 
-  This publishes from *this* build repo. The intended home for the
-  public site is GitHub Pages on the Lucid-Specification repo instead,
-  built and deployed automatically by a GitHub Actions workflow there.
-  `gh-deploy` from here remains useful for a quick manual preview.
+  This publishes from *this* build repo, so it's only useful for a quick
+  manual preview. The public site is deployed by the Lucid-Specification
+  repo's own workflow instead -- see [Automated builds](#automated-builds-github-actions).
 
-## Building the PDF
+### Building the PDF
 
 ```
 .venv\Scripts\python scripts\build_pdf.py
